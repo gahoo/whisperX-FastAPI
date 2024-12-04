@@ -279,45 +279,52 @@ def process_audio_common(params: SpeechToTextProcessingParams, session):
             threads=params.whisper_model_params.threads,
         )
 
-        logger.debug(
-            "Alignment parameters - align_model: %s, interpolate_method: %s, return_char_alignments: %s, language_code: %s",
-            params.alignment_params.align_model,
-            params.alignment_params.interpolate_method,
-            params.alignment_params.return_char_alignments,
-            segments_before_alignment["language"],
-        )
-        segments_transcript = align_whisper_output(
-            transcript=segments_before_alignment["segments"],
-            audio=params.audio,
-            language_code=segments_before_alignment["language"],
-            align_model=params.alignment_params.align_model,
-            interpolate_method=params.alignment_params.interpolate_method,
-            return_char_alignments=params.alignment_params.return_char_alignments,
-        )
-        transcript = AlignedTranscription(**segments_transcript)
-        # removing words within each segment that have missing start, end, or score values
-        transcript = filter_aligned_transcription(transcript).model_dump()
+        if params.alignment_params.alignment:
+            logger.debug(
+                "Alignment parameters - align_model: %s, interpolate_method: %s, return_char_alignments: %s, language_code: %s",
+                params.alignment_params.align_model,
+                params.alignment_params.interpolate_method,
+                params.alignment_params.return_char_alignments,
+                segments_before_alignment["language"],
+            )
+            segments_transcript = align_whisper_output(
+                transcript=segments_before_alignment["segments"],
+                audio=params.audio,
+                language_code=segments_before_alignment["language"],
+                align_model=params.alignment_params.align_model,
+                interpolate_method=params.alignment_params.interpolate_method,
+                return_char_alignments=params.alignment_params.return_char_alignments,
+            )
+            transcript = AlignedTranscription(**segments_transcript)
+            # removing words within each segment that have missing start, end, or score values
+            transcript = filter_aligned_transcription(transcript).model_dump()
+        else:
+            transcript = segments_before_alignment
 
-        logger.debug(
-            "Diarization parameters - device: %s, min_speakers: %s, max_speakers: %s",
-            params.whisper_model_params.device,
-            params.diarization_params.min_speakers,
-            params.diarization_params.max_speakers,
-        )
-        diarization_segments = diarize(
-            params.audio,
-            device=params.whisper_model_params.device,
-            min_speakers=params.diarization_params.min_speakers,
-            max_speakers=params.diarization_params.max_speakers,
-        )
+        if params.diarization_params.diarization:
+            logger.debug(
+                "Diarization parameters - device: %s, min_speakers: %s, max_speakers: %s",
+                params.whisper_model_params.device,
+                params.diarization_params.min_speakers,
+                params.diarization_params.max_speakers,
+            )
+            diarization_segments = diarize(
+                params.audio,
+                device=params.whisper_model_params.device,
+                min_speakers=params.diarization_params.min_speakers,
+                max_speakers=params.diarization_params.max_speakers,
+            )
 
-        logger.debug("Starting to combine transcript with diarization results")
-        result = assign_word_speakers(diarization_segments, transcript)
+            logger.debug("Starting to combine transcript with diarization results")
+            result = assign_word_speakers(diarization_segments, transcript)
+        else:
+            result = transcript
 
-        for segment in result["segments"]:
-            del segment["words"]
+        if params.alignment_params.alignment:
+            for segment in result["segments"]:
+                del segment["words"]
 
-        del result["word_segments"]
+            del result["word_segments"]
 
         logger.debug("Completed combining transcript with diarization results")
 

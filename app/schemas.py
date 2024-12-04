@@ -310,6 +310,12 @@ class WhsiperModelParams(BaseModel):
 class AlignmentParams(BaseModel):
     """Model for alignment parameters."""
 
+    alignment: bool = Field(
+        Query(
+            True,
+            description="Align or not.",
+        )
+    )
     align_model: Optional[str] = Field(
         Query(None, description="Name of phoneme-level ASR model to do alignment")
     )
@@ -330,6 +336,12 @@ class AlignmentParams(BaseModel):
 class DiarizationParams(BaseModel):
     """Model for diarization parameters."""
 
+    diarization: bool = Field(
+        Query(
+            True,
+            description="Diarization or not.",
+        )
+    )
     min_speakers: Optional[int] = Field(
         Query(None, description="Minimum number of speakers to in audio file")
     )
