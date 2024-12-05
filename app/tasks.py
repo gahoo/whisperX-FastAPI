@@ -5,10 +5,21 @@ from typing import Any, Dict
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
+from whisperx.utils import get_writer, ResultWriter
+from io import StringIO
+
 from .db import get_db_session, handle_database_errors
 from .models import Task
 from .schemas import ResultTasks, TaskSimple
 
+
+def monkey_patched_result_writer_method__call__(self, result: dict, audio_path: str, options: dict):
+    buffer = StringIO("")
+    self.write_result(result, file=buffer, options=options)
+    buffer.seek(0)
+    return buffer.read()
+
+setattr(ResultWriter, '__call__', monkey_patched_result_writer_method__call__)
 
 # Add tasks to the database
 @handle_database_errors
@@ -114,6 +125,20 @@ def get_task_status_from_db(identifier, session: Session = Depends(get_db_sessio
             },
             "error": task.error,
         }
+    else:
+        return None
+
+
+# Retrieve task result from the database
+@handle_database_errors
+def get_task_result_from_db(identifier, output_format, options, session: Session = Depends(get_db_session)):
+    task = session.query(Task).filter(Task.uuid == identifier).first()
+    if task:
+        result = task.result.copy()
+        result["language"] = task.language
+        writer = get_writer(output_format, '/tmp')
+        formated_result = writer(result, task.uuid, options)
+        return formated_result
     else:
         return None
 
