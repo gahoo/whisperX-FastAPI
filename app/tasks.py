@@ -5,21 +5,16 @@ from typing import Any, Dict
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-from whisperx.utils import get_writer, ResultWriter
-from io import StringIO
-
 from .db import get_db_session, handle_database_errors
 from .models import Task
 from .schemas import ResultTasks, TaskSimple
 
+from .whisperx_monkey_patch import result_writer_method__call__, subtitles_writer_method_iterate_result, write_vtt_method_write_result
+from whisperx.utils import get_writer, ResultWriter, SubtitlesWriter, WriteVTT
 
-def monkey_patched_result_writer_method__call__(self, result: dict, audio_path: str, options: dict):
-    buffer = StringIO("")
-    self.write_result(result, file=buffer, options=options)
-    buffer.seek(0)
-    return buffer.read()
-
-setattr(ResultWriter, '__call__', monkey_patched_result_writer_method__call__)
+setattr(ResultWriter, '__call__', result_writer_method__call__)
+setattr(SubtitlesWriter, 'iterate_result', subtitles_writer_method_iterate_result)
+setattr(WriteVTT, 'write_result', write_vtt_method_write_result)
 
 # Add tasks to the database
 @handle_database_errors
@@ -133,7 +128,7 @@ def get_task_status_from_db(identifier, session: Session = Depends(get_db_sessio
 @handle_database_errors
 def get_task_result_from_db(identifier, output_format, options, session: Session = Depends(get_db_session)):
     task = session.query(Task).filter(Task.uuid == identifier).first()
-    if task:
+    if task and task.result:
         result = task.result.copy()
         result["language"] = task.language
         writer = get_writer(output_format, '/tmp')

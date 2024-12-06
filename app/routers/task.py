@@ -71,6 +71,7 @@ async def get_transcription_result(
     highlight_words: bool = False,
     max_line_width: int = None,
     max_line_count: int = None,
+    karaoke_style: bool = False,
     session: Session = Depends(get_db_session),
 ):
     """
@@ -91,7 +92,7 @@ async def get_transcription_result(
         HTTPException: If the task is not found.
     """
     logger.info("Retrieving status for task ID: %s", identifier)
-    options = {"highlight_words": highlight_words, "max_line_width": max_line_width, "max_line_count": max_line_count }
+    options = {"highlight_words": highlight_words, "max_line_width": max_line_width, "max_line_count": max_line_count, "karaoke_style": karaoke_style}
     result = get_task_result_from_db(identifier, output_format, options, session)
     if result is not None:
         logger.info("Status retrieved for task ID: %s", identifier)

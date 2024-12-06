@@ -320,7 +320,7 @@ def process_audio_common(params: SpeechToTextProcessingParams, session):
         else:
             result = transcript
 
-        if params.alignment_params.alignment:
+        if params.alignment_params.alignment and not params.alignment_params.return_char_alignments:
             for segment in result["segments"]:
                 del segment["words"]
 
